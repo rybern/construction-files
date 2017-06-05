@@ -21,6 +21,9 @@ data Expression = Sym Symbol
                 | Flt Double
                 | Itr Integer
                 | Bol Bool
+                | ListOfItr [Integer]
+                | ListOfFlt [Double]
+                | ListOfExpr [Expression]
                 deriving (Show)
 
 newtype ParseError = ParseError Text deriving Show
@@ -50,7 +53,7 @@ parseAssignment :: Parser (Symbol, (Symbol, [Expression]))
 parseAssignment = do
   var <- withSpaces parseSymbol
   _ <- char '='
-  skipSpace
+  skipSpace'
   constructor <- parseConstructor
   return (var, constructor)
 
@@ -71,17 +74,42 @@ parseExpressions1 = many1 (withSpaces parseExpression)
 
 parseExpression :: Parser Expression
 parseExpression = choice [
-    (Paren <$> parseParenthetical)
+  parseExprNumList
+  , (ListOfExpr <$> parseList parseExpression)
+  , (Paren <$> parseParenthetical)
   , parseExprNumber
   , (Bol <$> parseBool)
   , (Str <$> parseQuoted)
   , (Sym <$> parseSymbol)
   ]
 
+parseExprNumList :: Parser Expression
+parseExprNumList = do
+  nums <- parseList scientific
+  return $ if any isFloating nums
+           then ListOfFlt $ map toRealFloat nums
+           else ListOfItr . flip map nums $ \n -> case floatingOrInteger n of
+                                                    Left r -> round r
+                                                    Right i -> i
+
+parseList :: Parser a -> Parser [a]
+parseList p = do
+  _ <- char '['
+  skipSpace'
+  ps <- sepBy p $ do
+    skipSpace'
+    _ <- char ','
+    skipSpace'
+
+  skipSpace'
+  _ <- char ']'
+  return ps
+
+
 parseParenthetical :: Parser [Expression]
 parseParenthetical = do
   _ <- char '('
-  skipSpace
+  skipSpace'
   exprs <- parseExpressions1
   _ <- char ')'
   return exprs

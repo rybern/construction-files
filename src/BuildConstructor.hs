@@ -11,18 +11,27 @@ module BuildConstructor
 where
 
 import Data.Text
+import Data.Text as Text (unlines)
 import Data.Text.IO as Text
 import qualified Data.Map as Map
 import ParseConstructor
 import Control.Monad
 
 -- everything in this project badly needs renaming
+                -- | ListOfItr [Integer]
+                -- | ListOfFlt [Double]
+                -- | ListOfExpr [Expression]
+
+-- should switch to making sure that each expression starts with a symbol in the evaluation stage instead of the parsing stage. this would be a useful function when evaluating nested expressions.
 
 data Constructor s = C0 s
                    | SimpleString (Text -> Constructor s)
                    | SimpleInt (Integer -> Constructor s)
                    | SimpleFloat (Double -> Constructor s)
                    | SimpleBool (Bool -> Constructor s)
+                   | SimpleListOfInt ([Integer] -> Constructor s)
+                   | SimpleListOfFloat ([Double] -> Constructor s)
+                   | SimpleListOfValue ([s] -> Constructor s)
                    | Composer (s -> Constructor s)
 
 newtype EvalError = EvalError Text deriving Show
@@ -97,6 +106,36 @@ consumeExpressions _ (SimpleBool _) (sym, (_:_)) = Left . EvalError $
 consumeExpressions _ (SimpleBool _) (sym, []) = Left . EvalError $
   "Constructor " `append` sym `append` " requires a boolean (True or False) where nothing was given (too few arguments)"
 
+consumeExpressions cs (SimpleListOfInt liFn) (sym, ((ListOfItr is):rest)) =
+  consumeExpressions cs (liFn is) (sym, rest)
+consumeExpressions _ (SimpleListOfInt _) (sym, (_:_)) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of integers where another type was given"
+consumeExpressions _ (SimpleListOfInt _) (sym, []) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of integers where nothing was given (too few arguments)"
+
+consumeExpressions cs (SimpleListOfFloat lxFn) (sym, ((ListOfFlt xs):rest)) =
+  consumeExpressions cs (lxFn xs) (sym, rest)
+consumeExpressions cs (SimpleListOfFloat lxFn) (sym, ((ListOfItr is):rest)) =
+  consumeExpressions cs (lxFn (Prelude.map fromIntegral is)) (sym, rest)
+consumeExpressions _ (SimpleListOfFloat _) (sym, (_:_)) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of floats where another type was given"
+consumeExpressions _ (SimpleListOfFloat _) (sym, []) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of floats where nothing was given (too few arguments)"
+
+consumeExpressions constructors (SimpleListOfValue lexprFn) (sym, ((ListOfExpr exprs):rest)) = do
+  values <- forM exprs $ \expr -> case expr of
+    Sym b -> buildSingleValue constructors (b, [])
+    Paren (Sym b:args) -> buildSingleValue constructors (b, args)
+    otherwise -> Left . EvalError $
+      "Constructor "
+      `append` sym `append`
+      " requires a list of Values (variables or constructors), but another type was given in the list"
+  consumeExpressions constructors (lexprFn values) (sym, rest)
+consumeExpressions _ (SimpleListOfValue _) (sym, (_:_)) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of Values where another type was given"
+consumeExpressions _ (SimpleListOfValue _) (sym, []) = Left . EvalError $
+  "Constructor " `append` sym `append` " requires a list of Values where nothing was given (too few arguments)"
+
 consumeExpressions constructors (Composer sFn) (sym, (Sym b):rest) = do
   argS <- buildSingleValue constructors (b, [])
   consumeExpressions constructors (sFn argS) (sym, rest)
@@ -107,3 +146,18 @@ consumeExpressions _ (Composer _) (sym, (_:_)) = Left . EvalError $
   "Constructor " `append` sym `append` " requires a Value where another type was given"
 consumeExpressions _ (Composer _) (sym, []) = Left . EvalError $
   "Constructor " `append` sym `append` " requires a Value where nothing was given (too few arguments)"
+
+{-
+some emergency test code
+
+cs = [ ("id" :: Symbol, SimpleListOfFloat C0)
+     , ("join", SimpleListOfValue (C0 . Prelude.concat))
+     , ("singleton", SimpleFloat (\x -> C0 [x]))]
+
+test = Text.unlines
+  [
+    "a = id [1, 2, 3, 54, 5, 6.1234, 6]"
+  , "b = id [123, 3, 54, 5, 6, 3, 4, 2]"
+  , "join [(singleton 45.56), (join [a, b, (id [123, 4,2134, 5])])]"
+  ]
+-}
