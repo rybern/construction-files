@@ -97,11 +97,11 @@ consumeExpressions _ (SimpleBool _) (sym, (_:_)) = Left . EvalError $
 consumeExpressions _ (SimpleBool _) (sym, []) = Left . EvalError $
   "Constructor " `append` sym `append` " requires a boolean (True or False) where nothing was given (too few arguments)"
 
-consumeExpressions constructors (Composer sFn) (sym, ((Sym b):rest)) = do
+consumeExpressions constructors (Composer sFn) (sym, (Sym b):rest) = do
   argS <- buildSingleValue constructors (b, [])
   consumeExpressions constructors (sFn argS) (sym, rest)
-consumeExpressions constructors (Composer sFn) (sym, ((Paren exprs):rest)) = do
-  argS <- buildSingleValue constructors (sym, exprs)
+consumeExpressions constructors (Composer sFn) (sym, (Paren ((Sym b):exprs)):rest) = do
+  argS <- buildSingleValue constructors (b, exprs)
   consumeExpressions constructors (sFn argS) (sym, rest)
 consumeExpressions _ (Composer _) (sym, (_:_)) = Left . EvalError $
   "Constructor " `append` sym `append` " requires a Value where another type was given"
