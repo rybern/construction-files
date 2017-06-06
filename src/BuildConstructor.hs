@@ -59,6 +59,7 @@ showConstructor valName (SimpleListOfInt f) = " [LIST OF INT]" `append` (showCon
 showConstructor valName (SimpleListOfFloat f) = " [LIST OF FLOAT]" `append` (showConstructor valName (f undefined))
 showConstructor valName (SimpleListOfValue f) = " [LIST OF " `append` valName `append` "]" `append` (showConstructor valName (f undefined))
 showConstructor valName (Composer f) = " " `append` valName `append` (showConstructor valName (f undefined))
+showConstructor valName (Monadic f) = ""
 
 data TinyLangConstructor m a = TinyLangConstructor {
     sym :: Symbol
