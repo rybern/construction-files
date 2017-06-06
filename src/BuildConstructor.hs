@@ -13,14 +13,15 @@ module BuildConstructor
   , buildValueFromFile
   , buildValueM
   , buildValueFromFileM
-  , printHelpBuilderHelp
+  , printBuilderHelp
+  , builderHelpLines
   , Symbol
   , eitherT
   , Constructible (..)
   )
 where
 
-import Data.Text hiding (map)
+import Data.Text hiding (concat, map, concatMap)
 import Data.Semigroup ((<>))
 import Data.Text as Text (unlines)
 import Data.Text.IO as Text
@@ -72,16 +73,21 @@ data TinyLangSpec m a = TinyLangSpec {
   , valName :: Text
   }
 
-printHelpBuilderHelp :: TinyLangSpec m a
-                     -> IO ()
-printHelpBuilderHelp (TinyLangSpec {..}) = do
-  Text.putStrLn "Constructors available:"
-  Text.putStrLn ""
-  forM_ constructors $ \(TinyLangConstructor {..}) -> do
-    Text.putStrLn $
-      "  " <> sym <> showConstructor valName constructor
-    forM_ constructorDescription $ \descLine ->
-      Text.putStrLn $ "    " <> descLine
+builderHelpLines :: TinyLangSpec m a
+                 -> [Text]
+builderHelpLines (TinyLangSpec {..}) =
+  [
+    "Constructors available:"
+  , ""
+  ] ++ concatMap constructorLines constructors
+  where descriptionLine desc = "    " <> desc
+        constructorLines (TinyLangConstructor {..}) =
+          ("  " <> sym <> showConstructor valName constructor)
+          : map descriptionLine constructorDescription
+
+printBuilderHelp :: TinyLangSpec m a
+                 -> IO ()
+printBuilderHelp = mapM_ Text.putStrLn . builderHelpLines
 
 newtype EvalError = EvalError Text deriving Show
 
