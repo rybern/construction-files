@@ -2,6 +2,7 @@
 module ParseConstructor where
 
 import Data.Attoparsec.Text
+import Data.Attoparsec.Text as Atto
 import Data.Char
 import Data.Text hiding (map, any)
 import Data.Text as Text (unlines)
@@ -64,7 +65,12 @@ parseConstructor = do
   return (identifier, rest)
 
 parseSymbol :: Parser Symbol
-parseSymbol = takeWhile1 isAlpha
+parseSymbol = do
+  first <- letter
+  rest <- Atto.takeWhile $ \c ->
+    (isAscii c &&) . not . any (== c) $
+    ['[', ']', '(', ')', ' ', ',', '=', '\\', '\n', '\t']
+  return $ first `cons` rest
 
 parseExpressions :: Parser [Expression]
 parseExpressions = many' (withSpaces parseExpression)
