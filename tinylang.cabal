@@ -23,3 +23,5 @@ library
                      , text
                      , containers
                      , scientific
+                     , either
+                     , transformers
