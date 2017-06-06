@@ -64,7 +64,7 @@ showConstructor valName (Monadic f) = ""
 data TinyLangConstructor m a = TinyLangConstructor {
     sym :: Symbol
   , constructor :: Constructor m a
-  , constructorDescription :: Text
+  , constructorDescription :: [Text]
   }
 
 data TinyLangSpec m a = TinyLangSpec {
@@ -80,8 +80,8 @@ printHelpBuilderHelp (TinyLangSpec {..}) = do
   forM_ constructors $ \(TinyLangConstructor {..}) -> do
     Text.putStrLn $
       "  " <> sym <> showConstructor valName constructor
-    Text.putStrLn $
-      "    " <> constructorDescription
+    forM_ constructorDescription $ \descLine ->
+      Text.putStrLn $ "    " <> descLine
 
 newtype EvalError = EvalError Text deriving Show
 
