@@ -13,6 +13,7 @@ module BuildConstructor
   , buildValueFromFile
   , buildValueM
   , buildValueFromFileM
+  , printHelpBuilderHelp
   , Symbol
   , eitherT
   , Constructible (..)
